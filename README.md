@@ -1,88 +1,75 @@
 # CoinTracker — Bitcoin Tracker (Prototype)
 
-A minimal Flask backend that lets you:
+A small app that lets you:
 - Add/remove Bitcoin addresses
-- Sync an address' balance and transactions from a public API
-- Retrieve balances and transactions per address
+- Sync balances and recent transactions from a public API
+- See balances and transactions in a simple web page
 
-The app defaults to SQLite for easy local setup and supports Postgres via `DATABASE_URL`.
+Defaults to SQLite, so it runs locally without installing a database.
 
-## Quickstart
+Quick Start
+- Install requirements:
+  - If you see an “externally-managed-environment” error, use a virtual environment.
+  - macOS/Linux:
+    - `python3 -m venv .venv && source .venv/bin/activate`
+    - `python3 -m pip install -r requirements.txt`
+  - Windows (PowerShell):
+    - `python -m venv .venv; .\.venv\Scripts\Activate.ps1`
+    - `python -m pip install -r requirements.txt`
+- Run the app: `python3 Backend/app.py`
+- Open your browser: `http://127.0.0.1:5000/`
 
-Prereqs: Python 3.9+ recommended.
+Use The App
+- Enter a Bitcoin address and click Add.
+- Click Sync to pull balance and recent transactions.
+- Click View Transaction to see the latest transactions for that address.
+- Remove deletes the address and its saved transactions.
 
-1) Install deps
-```
-python3 -m pip install -r requirements.txt
-```
+Try the API (optional)
+- Add: `curl -X POST http://127.0.0.1:5000/addresses -H 'Content-Type: application/json' -d '{"address":"3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd"}'`
+- List: `curl http://127.0.0.1:5000/addresses`
+- Sync: `curl -X POST http://127.0.0.1:5000/sync/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd`
+- Transactions: `curl http://127.0.0.1:5000/transactions/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd`
+- Remove: `curl -X DELETE http://127.0.0.1:5000/addresses/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd`
 
-2) Run the API (SQLite by default)
-```
-python3 Backend/app.py
-```
-Server starts on http://127.0.0.1:5000
+Troubleshooting
+- If installs fail, make sure your virtualenv is active (your prompt should show `.venv`).
+- If the page looks unstyled, hard refresh (Cmd/Ctrl+Shift+R). The CSS and JS are served at `/static/...`.
+- Data is stored in `Backend/cointracker.db` (created automatically).
 
-3) Try the endpoints
+Architecture (What’s inside)
+- Backend (Flask)
+  - Files: `Backend/app.py` (bootstrap), `Backend/routes.py` (endpoints), `Backend/models.py` (tables), `Backend/services/blockchain_api.py` (blockchain client), `Backend/extensions.py` (shared db object).
+  - Storage: SQLite via SQLAlchemy. One table for `addresses`, one for `transactions` (linked to an address). Deleting an address removes its transactions.
+- Frontend (React, minimal)
+  - Files: `Frontend/index.html` (served at `/`), `Frontend/app.jsx` (logic/UI), `Frontend/styles.css` (a few styles). Uses Tailwind via CDN for utility classes.
+- Tests
+  - File: `tests/test_api_unittest.py`. Uses an in-memory SQLite DB. Run with `python3 -m unittest -q`.
 
-Add address
-```
-curl -X POST http://127.0.0.1:5000/addresses \
-  -H 'Content-Type: application/json' \
-  -d '{"address": "3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd"}'
-```
+System Design Decisions
+- Database: SQLite by default to make setup trivial. Postgres is supported via `DATABASE_URL` if you want to point to a server later.
+- Sync provider: Uses Blockstream’s public API by default (no key required). If `BLOCKCHAIR_API_KEY` is set, tries Blockchair first and automatically falls back to Blockstream on rate-limit/errors.
+- Transaction amounts: Computed from Blockstream per transaction by netting outputs to the address minus inputs from the address. Amounts are returned as 8‑decimal strings (BTC) to preserve display precision.
+- Sync model: Manual per‑address Sync to keep the prototype simple and predictable (no background workers). Transactions are upserted so previously saved placeholder values get corrected on later syncs.
+- API shape: A handful of simple, human‑readable endpoints. An OpenAPI stub lives at `Backend/openapi.yaml` (ignored by Git) for reference.
 
-List addresses
-```
-curl http://127.0.0.1:5000/addresses
-```
+- Assumptions
+- Local, single-user demo running on your machine (no auth or multi-user state).
+- You provide valid Bitcoin addresses; server-side validation is minimal.
+- Recent transaction history is sufficient for demo purposes (not full archival sync).
+- Public network access is available to reach Blockstream/Blockchair; if both fail, sync will return an error.
+- Display precision is 8 decimals (BTC). For a prototype, float storage is acceptable; production would use integer satoshis or fixed-precision decimals.
+- All timestamps are handled and displayed in UTC.
+- No fiat conversion is performed; amounts are shown in BTC only.
+- SQLite file can be created in `Backend/` (write permission assumed).
 
-Sync an address (fetches from Blockchair)
-```
-curl -X POST http://127.0.0.1:5000/sync/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd
-```
+Limitations (Prototype scope)
+- Only the recent page of transactions is fetched for speed; very large wallets aren’t paged fully.
+- Internally, amounts are stored as floats for brevity (sufficient for a demo). A production version would store satoshis as integers or fixed‑precision decimals.
+- No auth/rate limiting since this is for local demo use.
 
-Get transactions
-```
-curl http://127.0.0.1:5000/transactions/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd
-```
-
-Remove address
-```
-curl -X DELETE http://127.0.0.1:5000/addresses/3E8ociqZa9mZUSwGdSmAEMAoAxBK3FNDcd
-```
-
-## Configuration
-
-- Database: Defaults to SQLite at `Backend/cointracker.db`.
-  - Override via `DATABASE_URL` (e.g., Postgres):
-    - macOS/Linux: `DATABASE_URL=postgresql://user:pass@localhost/db python3 Backend/app.py`
-    - Windows (PowerShell): `$env:DATABASE_URL='postgresql://user:pass@localhost/db'; python3 Backend/app.py`
-
-- Blockchain API provider:
-  - The app uses Blockstream's public API by default to avoid rate limits without a key.
-  - If you have a Blockchair API key, set `BLOCKCHAIR_API_KEY` (or `BLOCKCHAIN_API_KEY`) to use Blockchair.
-  - On Blockchair rate-limit errors (429/430), the app falls back to Blockstream automatically.
-
-## API Notes
-
-- Endpoints are defined in `Backend/routes.py`.
-- Data models are in `Backend/models.py` (tables: `addresses`, `transactions`).
-- Sync logic uses `Backend/services/blockchain_api.py` (Blockchair). For simplicity:
-  - Transaction amounts are placeholders (0.0) and type is simplified.
-  - Consider enhancing to fetch per-tx details and direction.
-
-An OpenAPI spec is provided at `Backend/openapi.yaml` (basic schema of current endpoints).
-
-## Assumptions & Decisions
-
-- SQLite default to minimize setup friction; swap to Postgres with `DATABASE_URL`.
-- Simplified sync: one-shot HTTP call; no background jobs.
-- Minimal error handling around external API; recommended follow-ups below.
-
-## Recommended Improvements (Next Iterations)
-
-- Harden external API client (timeouts, retries, rate limits, pagination, amount/direction logic).
-- Background sync job + last block height checkpointing.
-- AuthN/AuthZ if exposed beyond localhost.
-- OpenAPI-first development and auto-generated client.
-- Simple web UI or Postman collection for demoing.
+Configuration (Optional)
+- Use Postgres instead of SQLite:
+  - macOS/Linux: `DATABASE_URL=postgresql://user:pass@localhost/db python3 Backend/app.py`
+  - Windows (PowerShell): `$env:DATABASE_URL='postgresql://user:pass@localhost/db'; python3 Backend/app.py`
+- Use a Blockchair API key: set `BLOCKCHAIR_API_KEY` or `BLOCKCHAIN_API_KEY` in your environment.
