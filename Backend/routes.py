@@ -30,6 +30,8 @@ def remove_address(address):
     if not addr:
         return jsonify({"error": "Address not found"}), 404
 
+    # Remove related transactions first to satisfy FK constraints in SQLite
+    Transaction.query.filter_by(address_id=addr.id).delete(synchronize_session=False)
     db.session.delete(addr)
     db.session.commit()
     return jsonify({"message": "Address removed"}), 200

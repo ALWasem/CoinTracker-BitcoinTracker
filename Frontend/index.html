@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CoinTracker — Bitcoin Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-black text-zinc-100">
+    <header class="border-b border-zinc-900">
+      <div class="max-w-6xl mx-auto flex items-center gap-3 px-6 py-4">
+        <img src="{{ url_for('static', filename='CoinTrackerLogo.png') }}" alt="CoinTracker" class="h-7 w-auto select-none" />
+        <h1 class="m-0 text-xl tracking-wide text-zinc-100">CoinTracker — Bitcoin Tracker</h1>
+      </div>
+    </header>
+    <main id="root" class="max-w-6xl mx-auto p-4 md:p-6"></main>
+    <script type="text/babel" src="{{ url_for('static', filename='app.jsx') }}"></script>
+  </body>
+  </html>

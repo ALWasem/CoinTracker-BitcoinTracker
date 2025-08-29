@@ -37,6 +37,14 @@ Troubleshooting
 - If the page looks unstyled, hard refresh (Cmd/Ctrl+Shift+R). The CSS and JS are served at `/static/...`.
 - Data is stored in `Backend/cointracker.db` (created automatically).
 
+Testing
+- Make sure dependencies are installed (ideally in a virtualenv):
+  - `python3 -m pip install -r requirements.txt`
+- Run the tests from the repo root:
+  - `python3 -m unittest discover -s tests -p "test_*.py" -q`
+- If you see “Ran 0 tests”, ensure you are in the project root and used the exact command above.
+- Tests use an in‑memory SQLite database and do not call external APIs.
+
 Architecture (What’s inside)
 - Backend (Flask)
   - Files: `Backend/app.py` (bootstrap), `Backend/routes.py` (endpoints), `Backend/models.py` (tables), `Backend/services/blockchain_api.py` (blockchain client), `Backend/extensions.py` (shared db object).

@@ -1,0 +1,5 @@
+# Ignore local environment and generated artifacts
+.env
+.venv/
+__pycache__/
+*.pyc

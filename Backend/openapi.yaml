@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: CoinTracker Bitcoin Tracker API
+  version: '0.1.0'
+  description: Minimal API for adding, syncing, and reading Bitcoin addresses and transactions.
+servers:
+  - url: http://127.0.0.1:5000
+paths:
+  /addresses:
+    get:
+      summary: List all tracked addresses
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Address'
+    post:
+      summary: Add a Bitcoin address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address:
+                  type: string
+      responses:
+        '201':
+          description: Created
+        '400':
+          description: Address required or already exists
+  /addresses/{address}:
+    delete:
+      summary: Remove a Bitcoin address
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Removed }
+        '404': { description: Not found }
+  /sync/{address}:
+    post:
+      summary: Sync an address from the blockchain API
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema:
+            type: string
+      responses:
+        '200': { description: Synced }
+        '404': { description: Address not found }
+  /transactions/{address}:
+    get:
+      summary: Get transactions for an address
+      parameters:
+        - in: path
+          name: address
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '404': { description: Address not found }
+components:
+  schemas:
+    Address:
+      type: object
+      properties:
+        address: { type: string }
+        balance: { type: number, format: float }
+        last_synced: { type: string, format: date-time }
+    Transaction:
+      type: object
+      properties:
+        tx_hash: { type: string }
+        amount: { type: number, format: float }
+        timestamp: { type: string, format: date-time }
+        type: { type: string, enum: [incoming, outgoing] }
+
