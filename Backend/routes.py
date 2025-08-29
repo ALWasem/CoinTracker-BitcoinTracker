@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
 from models import Address, Transaction
-from services.blockchain_api import fetch_wallet_data
+from services.blockchain_api import fetch_wallet_data, BlockchainAPIError
 from datetime import datetime
 
 bp = Blueprint("api", __name__)
@@ -42,7 +42,7 @@ def list_addresses():
     return jsonify([
         {
             "address": a.address,
-            "balance": a.balance,
+            "balance": f"{float(a.balance):.8f}" if a.balance is not None else "0.00000000",
             "last_synced": a.last_synced.isoformat()
         } for a in addresses
     ])
@@ -55,22 +55,31 @@ def sync_address(address):
     if not addr:
         return jsonify({"error": "Address not found"}), 404
 
-    # Fetch from API
-    wallet_data = fetch_wallet_data(address)
+    # Fetch from API (with basic error handling)
+    try:
+        wallet_data = fetch_wallet_data(address)
+    except BlockchainAPIError as e:
+        return jsonify({"error": f"sync failed: {e}"}), 502
 
     # Update balance
     addr.balance = wallet_data["balance"]
     addr.last_synced = datetime.utcnow()
 
-    # Add new transactions
+    # Upsert transactions (update existing placeholders with accurate amounts)
     for tx in wallet_data["transactions"]:
-        if not Transaction.query.filter_by(tx_hash=tx["tx_hash"]).first():
+        existing = Transaction.query.filter_by(tx_hash=tx["tx_hash"]).first()
+        if existing:
+            # Update fields if changed
+            existing.amount = tx["amount"]
+            existing.timestamp = tx["timestamp"]
+            existing.tx_type = tx["type"]
+        else:
             new_tx = Transaction(
                 address_id=addr.id,
                 tx_hash=tx["tx_hash"],
                 amount=tx["amount"],
                 timestamp=tx["timestamp"],
-                tx_type=tx["type"]
+                tx_type=tx["type"],
             )
             db.session.add(new_tx)
 
@@ -89,7 +98,7 @@ def get_transactions(address):
     return jsonify([
         {
             "tx_hash": tx.tx_hash,
-            "amount": tx.amount,
+            "amount": f"{float(tx.amount):.8f}",
             "timestamp": tx.timestamp.isoformat(),
             "type": tx.tx_type
         } for tx in txs
