@@ -25,6 +25,7 @@ class Transaction(db.Model):
         db.Integer,
         db.ForeignKey("addresses.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
     tx_hash = db.Column(db.String(100), unique=True, nullable=False)
     amount = db.Column(db.Float, nullable=False)

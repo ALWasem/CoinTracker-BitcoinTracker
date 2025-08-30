@@ -67,23 +67,33 @@ def sync_address(address):
     addr.balance = wallet_data["balance"]
     addr.last_synced = datetime.utcnow()
 
-    # Upsert transactions (update existing placeholders with accurate amounts)
-    for tx in wallet_data["transactions"]:
-        existing = Transaction.query.filter_by(tx_hash=tx["tx_hash"]).first()
-        if existing:
-            # Update fields if changed
-            existing.amount = tx["amount"]
-            existing.timestamp = tx["timestamp"]
-            existing.tx_type = tx["type"]
-        else:
-            new_tx = Transaction(
-                address_id=addr.id,
-                tx_hash=tx["tx_hash"],
-                amount=tx["amount"],
-                timestamp=tx["timestamp"],
-                tx_type=tx["type"],
-            )
-            db.session.add(new_tx)
+    # Upsert transactions efficiently: single query to find existing, then bulk insert new
+    incoming_txs = wallet_data["transactions"]
+    tx_hashes = [t["tx_hash"] for t in incoming_txs]
+    if tx_hashes:
+        existing_rows = Transaction.query.filter(Transaction.tx_hash.in_(tx_hashes)).all()
+        existing_by_hash = {row.tx_hash: row for row in existing_rows}
+
+        new_objects = []
+        for t in incoming_txs:
+            found = existing_by_hash.get(t["tx_hash"])
+            if found:
+                found.amount = t["amount"]
+                found.timestamp = t["timestamp"]
+                found.tx_type = t["type"]
+            else:
+                new_objects.append(
+                    Transaction(
+                        address_id=addr.id,
+                        tx_hash=t["tx_hash"],
+                        amount=t["amount"],
+                        timestamp=t["timestamp"],
+                        tx_type=t["type"],
+                    )
+                )
+
+        if new_objects:
+            db.session.bulk_save_objects(new_objects)
 
     db.session.commit()
     return jsonify({"message": "Address synced"})
@@ -96,7 +106,14 @@ def get_transactions(address):
     if not addr:
         return jsonify({"error": "Address not found"}), 404
 
-    txs = Transaction.query.filter_by(address_id=addr.id).all()
+    # Return the 25 most recent transactions (no pagination)
+    q = (
+        Transaction.query
+        .filter_by(address_id=addr.id)
+        .order_by(Transaction.timestamp.desc())
+        .limit(25)
+    )
+    txs = q.all()
     return jsonify([
         {
             "tx_hash": tx.tx_hash,

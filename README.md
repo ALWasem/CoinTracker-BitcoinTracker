@@ -56,19 +56,19 @@ Architecture (What’s inside)
 
 System Design Decisions
 - Database: SQLite by default to make setup trivial. Postgres is supported via `DATABASE_URL` if you want to point to a server later.
-- Sync provider: Uses Blockstream’s public API by default (no key required). If `BLOCKCHAIR_API_KEY` is set, tries Blockchair first and automatically falls back to Blockstream on rate-limit/errors.
+- Sync provider: Uses Blockstream’s public API by default (no key required). If `BLOCKCHAIR_API_KEY` is set, tries Blockchair first and automatically falls back to Blockstream on rate‑limit/errors.
 - Transaction amounts: Computed from Blockstream per transaction by netting outputs to the address minus inputs from the address. Amounts are returned as 8‑decimal strings (BTC) to preserve display precision.
-- Sync model: Manual per‑address Sync to keep the prototype simple and predictable (no background workers). Transactions are upserted so previously saved placeholder values get corrected on later syncs.
-- API shape: A handful of simple, human‑readable endpoints. An OpenAPI stub lives at `Backend/openapi.yaml` (ignored by Git) for reference.
+- Sync model: Clicking Sync for an address fetches its latest balance and the most recent 25 transactions from the provider. For each transaction, the app computes the net amount (incoming/outgoing) for that address and saves it. Existing transactions are updated; new ones are inserted. There are no background jobs or continuous polling in this prototype.
+- API schema: A small set of simple endpoints. An OpenAPI stub lives at `Backend/openapi.yaml` (ignored by Git) for reference.
 
-- Assumptions
-- Local, single-user demo running on your machine (no auth or multi-user state).
-- You provide valid Bitcoin addresses; server-side validation is minimal.
-- Recent transaction history is sufficient for demo purposes (not full archival sync).
-- Public network access is available to reach Blockstream/Blockchair; if both fail, sync will return an error.
-- Display precision is 8 decimals (BTC). For a prototype, float storage is acceptable; production would use integer satoshis or fixed-precision decimals.
-- All timestamps are handled and displayed in UTC.
-- No fiat conversion is performed; amounts are shown in BTC only.
+Assumptions
+- Local, single‑user demo running on your machine (no auth or multi‑user state).
+- You provide valid Bitcoin addresses; server‑side validation is minimal.
+- Showing recent history (last 25 transactions) is enough for the demo (no full archival sync).
+- Public network access is available to reach Blockstream/Blockchair; if both fail, sync returns an error.
+- Display precision is 8 decimals (BTC). For a prototype, float storage is acceptable; production would use integer satoshis or fixed‑precision decimals.
+- All timestamps use UTC.
+- No fiat conversion; amounts are shown in BTC only.
 - SQLite file can be created in `Backend/` (write permission assumed).
 
 Limitations (Prototype scope)
