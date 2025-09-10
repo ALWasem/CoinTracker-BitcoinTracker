@@ -17,7 +17,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Address'
+                  $ref: '#/components/schemas/AddressResponse'
     post:
       summary: Add a Bitcoin address
       requestBody:
@@ -76,21 +76,87 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Transaction'
+                  $ref: '#/components/schemas/TransactionResponse'
         '404': { description: Address not found }
 components:
   schemas:
-    Address:
+    # Response shapes returned by the current API
+    AddressResponse:
       type: object
+      description: Address object returned by GET /addresses (subset of AddressRecord)
       properties:
-        address: { type: string }
-        balance: { type: number, format: float }
-        last_synced: { type: string, format: date-time }
-    Transaction:
+        address:
+          type: string
+          description: Bitcoin address
+          example: bc1q0sg9rdst255gtldsmcf8rk0764avqy2h2ksqs5
+        balance:
+          type: string
+          description: Current balance in BTC with 8 decimal places
+          example: "0.00020858"
+        last_synced:
+          type: string
+          format: date-time
+          description: Last time this address was synced (UTC)
+    TransactionResponse:
       type: object
+      description: Transaction object returned by GET /transactions/{address}
       properties:
-        tx_hash: { type: string }
-        amount: { type: number, format: float }
-        timestamp: { type: string, format: date-time }
-        type: { type: string, enum: [incoming, outgoing] }
+        tx_hash:
+          type: string
+          example: 4b0f...c9e2
+        amount:
+          type: string
+          description: BTC amount with 8 decimal places (absolute value)
+          example: "0.00010000"
+        timestamp:
+          type: string
+          format: date-time
+          description: Block time (UTC), or current time if unconfirmed
+        type:
+          type: string
+          enum: [incoming, outgoing]
+          description: Direction relative to the address
 
+    # Records mirror the database schema (for documentation)
+    AddressRecord:
+      type: object
+      description: Persistent representation of an address row
+      properties:
+        id:
+          type: integer
+          example: 1
+        address:
+          type: string
+        balance:
+          type: number
+          format: float
+        last_synced:
+          type: string
+          format: date-time
+        transactions:
+          type: array
+          description: Transactions associated with this address
+          items:
+            $ref: '#/components/schemas/TransactionRecord'
+    TransactionRecord:
+      type: object
+      description: Persistent representation of a transaction row
+      properties:
+        id:
+          type: integer
+          example: 42
+        address_id:
+          type: integer
+          description: Foreign key referencing AddressRecord.id
+          example: 1
+        tx_hash:
+          type: string
+        amount:
+          type: number
+          format: float
+        timestamp:
+          type: string
+          format: date-time
+        tx_type:
+          type: string
+          enum: [incoming, outgoing]
