@@ -1,8 +1,9 @@
 import os
 from flask import Flask, render_template
 from extensions import db
+from routes import bp as api_blueprint
 
-basedir = os.path.abspath(os.path.dirname(__file__))
+di  = os.path.abspath(os.path.dirname(__file__))
 template_dir = os.path.abspath(os.path.join(basedir, '..', 'Frontend'))
 
 # Serve templates and static assets from Frontend/
@@ -22,11 +23,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Initialize extensions
 db.init_app(app)
 
-# Import models to register with SQLAlchemy
-import models
-
 # Register API routes
-from routes import bp as api_blueprint
 app.register_blueprint(api_blueprint)
 
 @app.route("/")
